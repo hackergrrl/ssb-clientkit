@@ -5,12 +5,26 @@ const debug = require('debug')('ssb-clientkit')
 
 export class ClientKit {
   client : any
+  server : any
 
   connectOrStart () : Promise<any> {
     return new Promise((resolve, reject) => {
       connect()
-        .then(ssb => { this.client = ssb; resolve() })
-        .catch(err => reject(err))
+        .then(client => {
+          this.client = client
+          debug('Using pre-existing Scuttlebutt server instead of starting one')
+          resolve()
+        })
+        .catch(err => {
+          start()
+            .then((res) => {
+              this.client = res[0]
+              this.server = res[1]
+              debug('Connected to our own Scuttlebutt server')
+              resolve()
+            })
+            .catch(err => reject(err))
+        })
     })
   }
 
@@ -18,18 +32,26 @@ export class ClientKit {
     return new Promise((resolve, reject) => {
       this.client.close((err : Error) => {
         if (err) reject(err)
-        else resolve()
+        else {
+          if (!this.server) return resolve()
+          else {
+            console.log(this.server)
+            this.server.close((err : Error) => {
+              if (err) reject(err)
+              else resolve()
+            })
+          }
+        }
       })
     })
   }
 }
 
-function connect () {
+function connect () : Promise<any> {
   return new Promise((resolve, reject) => {
     ssbClient((err : Error, api : any) => {
       if (!err) {
         resolve(api)
-        debug('Using pre-existing Scuttlebutt server instead of starting one')
       } else {
         reject(err)
       }
@@ -37,7 +59,7 @@ function connect () {
   })
 }
 
-function start () {
+function start () : Promise<any> {
   return new Promise((resolve, reject) => {
     debug('Initial connection attempt failed')
     debug('Starting Scuttlebutt server')
@@ -56,6 +78,7 @@ function start () {
       .use(require('ssb-friends'))
       .use(require('ssb-blobs'))
       .use(require('ssb-invite'))
+      // TODO: merge https://github.com/ssbc/ssb-local/pull/1
       .use(require('ssb-local'))
       .use(require('ssb-logging'))
       .use(require('ssb-query'))
@@ -66,9 +89,8 @@ function start () {
       .use(require('ssb-backlinks'))
       .use(require('ssb-about'))
 
-    server(ssbConfig)
+    var api = server(ssbConfig)
 
-    // TOOD: eventually give up + reject
     let retryTimes : number = 10
     const connectOrRetry = () => {
       retryTimes--
@@ -76,12 +98,14 @@ function start () {
 
       connect().then((ssb) => {
         debug('Retrying connection to own server')
-        resolve(ssb)
+        resolve([ssb, api])
       }).catch((e) => {
         debug(e)
         connectOrRetry()
       })
     }
+
+    connectOrRetry()
   })
 }
 

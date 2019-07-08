@@ -1,7 +1,7 @@
 import { ClientKit } from '../index'
 let test = require('tape')
 
-test('can connect / start server', (t : any) => {
+test('can connect / start server & close', (t : any) => {
   t.plan(2)
 
   let kit = new ClientKit()
