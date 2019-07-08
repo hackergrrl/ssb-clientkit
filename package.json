@@ -20,8 +20,10 @@
     "ssb-config": "^3.3.1"
   },
   "devDependencies": {
-    "tape": "~4.6.2",
-    "standard": "~10.0.0"
+    "@types/node": "^12.0.12",
+    "standard": "~10.0.0",
+    "tape": "^4.6.3",
+    "typescript": "^3.5.2"
   },
   "license": "ISC"
 }
